@@ -1,0 +1,20 @@
+###############
+#    folder   #
+###############
+/**/DROP/
+/**/TEMP/
+/**/packages/
+/**/bin/
+/**/obj/
+#_site
+#/**/.vs/
+#api
+#articles
+#docfx.json
+#log.txt
+#toc.yml
+#apsettings.json
+#Properties
+#.config
+#CheapFlights.csproj.user
+#appsettings.Development.json

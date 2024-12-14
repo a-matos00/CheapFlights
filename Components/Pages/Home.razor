@@ -1,0 +1,313 @@
+﻿@page "/"
+
+@rendermode InteractiveServer
+
+@using Microsoft.Extensions.Caching.Memory;
+@using CheapFlights.Services
+@using DataTransferObjects
+@using System.ComponentModel.DataAnnotations
+@using CheapFlights.Enums
+@using CheapFlights.Model
+@using CheapFlights.Extensions
+
+@inject FlightCacheService CacheService
+
+<div class="container mt-4">
+    @if (_presentation.ShowValidationAlert)
+    {
+        <div class="validation-alert">
+            <div class="validation-alert-content">
+                <div class="validation-alert-header">
+                    <h5>Validation Error</h5>
+                    <button type="button" class="close-button" @onclick="@_presentation.ResetValidation">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="validation-alert-body">
+                    @foreach (var line in _presentation.ValidationMessage.Split('\n'))
+                    {
+                        <p>• @line</p>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <h1 class="text-center mb-4 d-flex align-items-center justify-content-center gap-2" 
+        style="background: linear-gradient(135deg, #FFD700, #FFC000); 
+               color: black; 
+               padding: 15px; 
+               border-radius: 12px;
+               box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+               font-weight: 600;
+               text-transform: uppercase;
+               letter-spacing: 1px;">
+        <i class="bi bi-airplane" style="transform: rotate(-45deg);"></i>
+        Cheap Flight Finder
+    </h1>
+
+    <EditForm Model="@_presentation.SearchParams" OnInvalidSubmit="_presentation.HandleInvalidSubmit" OnValidSubmit="_presentation.Search">
+        <ObjectGraphDataAnnotationsValidator />
+
+        <div class="flight-type-selector mb-3" @onclick="_presentation.ToggleFlightTypeDropdown">
+            <div class="flight-type-summary">
+                <span>@(_presentation.SearchParams.IsOneWay ? "One Way" : "Return")</span>
+                <i class="bi bi-chevron-down"></i>
+            </div>
+            @if (_presentation.IsFlightTypeDropdownOpen)
+            {
+                <div class="flight-type-options">
+                    <div class="flight-type-option" @onclick="() => _presentation.SelectFlightType(true)">
+                        <span>One Way</span>
+                    </div>
+                    <div class="flight-type-option" @onclick="() => _presentation.SelectFlightType(false)">
+                        <span>Return</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="search-bar">
+            <div class="search-input">
+                <label for="origin">From</label>
+                <div class="input-with-icon">
+                    <i class="bi bi-geo-alt"></i>
+                    <InputText id="origin" placeholder="From?" class="form-control" @bind-Value="_presentation.SearchParams.OriginLocationCode" maxlength="3" />
+                </div>
+            </div>
+
+            <div class="search-input">
+                <label for="destination">To</label>
+                <div class="input-with-icon">
+                    <i class="bi bi-geo-alt"></i>
+                    <InputText id="destination" placeholder="To?" class="form-control" @bind-Value="_presentation.SearchParams.DestinationLocationCode" maxlength="3" />
+                </div>
+            </div>
+
+            <div class="search-input date">
+                <label for="departureDate">Departure Date</label>
+                <div class="input-with-icon">
+                    <i class="bi bi-calendar"></i>
+                    <InputDate id="departureDate" class="form-control" @bind-Value="_presentation.SearchParams.DepartureDate"
+                              min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+
+            @if (!_presentation.SearchParams.IsOneWay)
+            {
+                <div class="search-input date">
+                    <label for="returnDate">Return Date</label>
+                    <div class="input-with-icon">
+                        <i class="bi bi-calendar"></i>
+                        <InputDate id="returnDate" class="form-control" @bind-Value="_presentation.SearchParams.ReturnDate"
+                                  min="@_presentation.SearchParams.DepartureDate.ToString("yyyy-MM-dd")" />
+                    </div>
+                </div>
+            }
+
+            <div class="search-input">
+                <label>Passengers</label>
+                <div class="passenger-selector" @onclick="_presentation.TogglePassengerDropdown">
+                    <i class="bi bi-person"></i>
+                    <span>@_presentation.SearchParams.Passengers.TotalCount() Traveler@(_presentation.SearchParams.Passengers.TotalCount() > 1 ? "s" : "")</span>
+                </div>
+                @if (_presentation.IsPassengerDropdownOpen)
+                {
+                    <div class="passenger-types">
+                        <div class="passenger-row">
+                            <div class="passenger-info">
+                                <span class="passenger-type">Adults</span>
+                            </div>
+                            <div class="passenger-controls">
+                                <button type="button" class="btn btn-outline-secondary" 
+                                    @onclick:stopPropagation="true" 
+                                    @onclick="() =>  _presentation.SearchParams.Passengers.UpdatePassengerCount(PassengerType.Adult, false)" 
+                                    disabled="@(_presentation.SearchParams.Passengers.AdultsCount <= 1)">-</button>
+                                <span class="passenger-count">@_presentation.SearchParams.Passengers.AdultsCount</span>
+                                <button type="button" class="btn btn-outline-secondary" 
+                                    @onclick:stopPropagation="true" 
+                                    @onclick="() =>  _presentation.SearchParams.Passengers.UpdatePassengerCount(PassengerType.Adult, true)" 
+                                    disabled="@(_presentation.SearchParams.Passengers.AdultsCount >= 9)">+</button>
+                            </div>
+                        </div>
+                        <div class="passenger-row">
+                            <div class="passenger-info">
+                                <span class="passenger-type">Children</span>
+                            </div>
+                            <div class="passenger-controls">
+                                <button type="button" class="btn btn-outline-secondary" 
+                                    @onclick:stopPropagation="true" 
+                                    @onclick="() =>  _presentation.SearchParams.Passengers.UpdatePassengerCount(PassengerType.Child, false)" 
+                                    disabled="@(_presentation.SearchParams.Passengers.ChildCount <= 0)">-</button>
+                                <span class="passenger-count">@_presentation.SearchParams.Passengers.ChildCount</span>
+                                <button type="button" class="btn btn-outline-secondary" 
+                                    @onclick:stopPropagation="true" 
+                                    @onclick="() =>  _presentation.SearchParams.Passengers.UpdatePassengerCount(PassengerType.Child, true)" 
+                                    disabled="@(_presentation.SearchParams.Passengers.ChildCount >= 9)">+</button>
+                            </div>
+                        </div>
+                        <div class="passenger-row">
+                            <div class="passenger-info">
+                                <span class="passenger-type">Infants</span>
+                            </div>
+                            <div class="passenger-controls">
+                                <button type="button" class="btn btn-outline-secondary" 
+                                    @onclick:stopPropagation="true" 
+                                    @onclick="() =>  _presentation.SearchParams.Passengers.UpdatePassengerCount(PassengerType.Infant, false)" 
+                                    disabled="@(_presentation.SearchParams.Passengers.InfantCount <= 0)">-</button>
+                                <span class="passenger-count">@_presentation.SearchParams.Passengers.InfantCount</span>
+                                <button type="button" class="btn btn-outline-secondary" 
+                                    @onclick:stopPropagation="true" 
+                                    @onclick="() =>  _presentation.SearchParams.Passengers.UpdatePassengerCount(PassengerType.Infant, true)"
+                                    disabled="@(_presentation.SearchParams.Passengers.InfantCount >= 9)">
+                                    +
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="search-input">
+                <label for="currency">Currency</label>
+                <div class="input-with-icon">
+                    <i class="bi bi-currency-exchange"></i>
+                    <InputSelect id="currency" class="form-select" @bind-Value="_presentation.SearchParams.Currency">
+                        @foreach (var currency in Enum.GetValues<CurrencyCode>())
+                        {
+                            <option value="@currency">@currency</option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-warning search-button">Search Flights</button>
+        </div>
+    </EditForm>
+
+    @if (!_presentation.IsLoading)
+    {
+        @if (_presentation.Results != null && _presentation.Results.Any())
+        {
+            <div class="mt-4">
+                <h4>Flight Offers</h4>
+                <div class="flight-offers-container">
+                    @foreach (var offer in _presentation.Results)
+                    {
+                        <div class="flight-card">
+                            <div class="flight-card-header">
+                                <div class="price-tag">
+                                    @offer.Currency @offer.TotalPrice.ToString("F2")
+                                </div>
+                            </div>
+                            
+                            <div class="flight-card-body">
+                                <div class="journey outbound">
+                                    <div class="journey-header">
+                                        <i class="bi bi-airplane-fill"></i>
+                                        <span>Outbound Flight</span>
+                                    </div>
+                                    <div class="route">
+                                        <div class="airport">
+                                            <div class="airport-code">@offer.OriginAirport</div>
+                                            <div class="time">@offer.DepartureDate.ToString("HH:mm")</div>
+                                            <div class="date">@offer.DepartureDate.ToString("MMM dd")</div>
+                                        </div>
+                                        <div class="flight-info">
+                                            <div class="duration-line">
+                                                <div class="stops-indicator">
+                                                    @if (offer.StopsInDepartureJourney == 0)
+                                                    {
+                                                        <span class="direct">Direct</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="stops">@offer.StopsInDepartureJourney stop@(offer.StopsInDepartureJourney > 1 ? "s" : "")</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="airport">
+                                            <div class="airport-code">@offer.DestinationAirport</div>
+                                            <div class="time">@offer.ArrivalDate.ToString("HH:mm")</div>
+                                            <div class="date">@offer.ArrivalDate.ToString("MMM dd")</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                @if (!_presentation.SearchParams.IsOneWay && offer.ReturnDepartureDate.HasValue)
+                                {
+                                    <div class="journey return">
+                                        <div class="journey-header">
+                                            <i class="bi bi-airplane-fill return-icon"></i>
+                                            <span>Return Flight</span>
+                                        </div>
+                                        <div class="route">
+                                            <div class="airport">
+                                                <div class="airport-code">@offer.DestinationAirport</div>
+                                                <div class="time">@offer.ReturnDepartureDate.Value.ToString("HH:mm")</div>
+                                                <div class="date">@offer.ReturnDepartureDate.Value.ToString("MMM dd")</div>
+                                            </div>
+                                            <div class="flight-info">
+                                                <div class="duration-line">
+                                                    <div class="stops-indicator">
+                                                        @if (offer.StopsInReturnJourney == 0)
+                                                        {
+                                                            <span class="direct">Direct</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="stops">@offer.StopsInReturnJourney stop@(offer.StopsInReturnJourney > 1 ? "s" : "")</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="airport">
+                                                <div class="airport-code">@offer.OriginAirport</div>
+                                                <div class="time">@offer.ReturnArrivalDate.Value.ToString("HH:mm")</div>
+                                                <div class="date">@offer.ReturnArrivalDate.Value.ToString("MMM dd")</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                                <div class="flight-card-footer">
+                                    <div class="seats-available">
+                                        <i class="bi bi-person-fill"></i>
+                                        @(_presentation.SearchParams.Passengers.TotalCount()) Traveler@( _presentation.SearchParams.Passengers.TotalCount() > 1 ? "s" : "")
+                                    </div>
+                                    <button class="btn btn-primary select-flight-btn">Select</button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_presentation.ErrorMessage))
+        {
+            <div class="alert alert-danger mt-3" role="alert">
+                <h4 class="alert-heading">Validation Errors:</h4>
+                @foreach (var error in _presentation.ErrorMessage.Split('\n'))
+                {
+                    <p class="mb-0">@error</p>
+                }
+            </div>
+        }
+    }
+
+    @if (_presentation.IsLoading)
+    {
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Searching for the best flights...</p>
+        </div>
+    }
+
+</div>
+
+@code
+{
+    [Inject]
+    private PresentationService _presentation { get; set; }
+}
