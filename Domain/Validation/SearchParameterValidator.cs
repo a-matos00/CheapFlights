@@ -23,9 +23,7 @@ namespace CheapFlights.Domain.Validation
             }
             catch (Exception ex)
             {
-                // Log the error appropriately
-                Console.WriteLine($"Error loading IATA codes: {ex.Message}");
-                validIataCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                throw new InvalidOperationException("Failed to initialize IATA codes", ex);
             }
         }
 
