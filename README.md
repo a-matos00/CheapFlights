@@ -31,3 +31,6 @@ If the API call successfully returned data, it is mapped to the search parameter
 
 ### Dependencies
 -  **amadeus-dotnet**: A .NET client for the Amadeus API, used for accessing flight offers and related data.
+
+### API Access
+The Amadeus API requires api key and secret to use it. In development phase they can be specified as AMADEUS_API_KEY and AMADEUS_API_SECRET in the appsettings.json file. In release they are set as enviroment variables in Azure.

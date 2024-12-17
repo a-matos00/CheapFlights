@@ -19,3 +19,4 @@ appsettings.json
 .config
 CheapFlights.csproj.user
 appsettings.Development.json
+index.md
