@@ -18,4 +18,8 @@
     <Folder Include="wwwroot\css\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Domain\Validation\Data\iata_codes.json"/>
+  </ItemGroup>
+
 </Project>

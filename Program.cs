@@ -1,12 +1,15 @@
-using CheapFlights.Components;
-using CheapFlights.Interfaces;
-using CheapFlights.Services;
+using CheapFlights.Presentation;
 using amadeus;
 using Microsoft.Extensions.Caching.Memory;
+using CheapFlights.Presentation;
+using CheapFlights.Application;
+using CheapFlights.Infrastructure.Interfaces;
+using CheapFlights.Application.Interfaces;
+using CheapFlights.Infrastructure.Services;
+using CheapFlights.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -16,6 +19,13 @@ builder.Services.AddScoped<FlightCacheService>(sp =>
 {
     var cache = sp.GetRequiredService<IMemoryCache>();
     return new FlightCacheService(cache, TimeSpan.FromMinutes(30));
+});
+
+builder.Services.AddScoped<IFlightSearchManagerService, FlightSearchManagerService>(sp =>
+{
+    var cacheService = sp.GetRequiredService<FlightCacheService>();
+    var amadeusService = sp.GetRequiredService<IFlightOfferApiService>();
+    return new FlightSearchManagerService(cacheService, amadeusService);
 });
 
 builder.Services.AddScoped<PresentationService>();
@@ -35,20 +45,11 @@ builder.Services.AddScoped<IFlightOfferApiService, AmadeusApiClientService>(sp =
     return new AmadeusApiClientService(amadeus);
 });
 
-builder.Services.AddScoped<FlightSearchManager>(sp =>
-{
-    var cacheService = sp.GetRequiredService<FlightCacheService>();
-    var amadeusService = sp.GetRequiredService<IFlightOfferApiService>();
-    return new FlightSearchManager(cacheService, amadeusService);
-});
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
