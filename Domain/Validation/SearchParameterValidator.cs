@@ -8,6 +8,9 @@ namespace CheapFlights.Domain.Validation
     {
         private static HashSet<string> validIataCodes;
 
+        const int MaxPassengerCount = 9;
+        const int IATA_CODE_LENGTH = 3;
+
         static SearchParametersValidator()
         {
             LoadIataCodes();
@@ -34,7 +37,7 @@ namespace CheapFlights.Domain.Validation
                 return new ValidationResult("Airport code cannot be empty");
             }
 
-            if (code.Length != 3)
+            if (code.Length != IATA_CODE_LENGTH)
             {
                 return new ValidationResult("Airport code must be exactly 3 characters");
             }
@@ -78,9 +81,9 @@ namespace CheapFlights.Domain.Validation
 
         public static ValidationResult ValidatePassengerCount(Passengers passengers, ValidationContext context)
         {
-            if (passengers.AdultsCount + passengers.ChildCount + passengers.InfantCount > 9)
+            if (passengers.AdultsCount + passengers.ChildCount + passengers.InfantCount > MaxPassengerCount)
             {
-                return new ValidationResult("Total passenger count cannot exceed 9.");
+                return new ValidationResult($"Total passenger count cannot exceed {MaxPassengerCount}.");
             }
 
             if (passengers.InfantCount > passengers.AdultsCount)
