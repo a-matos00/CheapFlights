@@ -1,8 +1,6 @@
 using CheapFlights.Presentation;
 using amadeus;
 using Microsoft.Extensions.Caching.Memory;
-using CheapFlights.Presentation;
-using CheapFlights.Application;
 using CheapFlights.Infrastructure.Interfaces;
 using CheapFlights.Application.Interfaces;
 using CheapFlights.Infrastructure.Services;
@@ -35,6 +33,18 @@ builder.Services.AddSingleton(sp =>
     var configuration = sp.GetRequiredService<IConfiguration>();
     var apiKey = configuration["AMADEUS_API_KEY"];
     var apiSecret = configuration["AMADEUS_API_SECRET"];
+    
+    if (string.IsNullOrEmpty(apiKey))
+    {
+        throw new InvalidOperationException("AMADEUS_API_KEY is not configured");
+    }
+    
+    if (string.IsNullOrEmpty(apiSecret))
+    {
+        throw new InvalidOperationException("AMADEUS_API_SECRET is not configured");
+    }
+
+    //add exception catching and error page
     
     return Amadeus.builder(apiKey, apiSecret).build();
 });
